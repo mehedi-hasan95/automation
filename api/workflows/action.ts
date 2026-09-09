@@ -19,5 +19,5 @@ export const createWorkflowAction = async (name: string) => {
   const workflow = await createWorkflow(orgId, name)
 
   revalidatePath("/", "layout")
-  redirect(`/workflows/${workflow.id}`)
+  redirect(`/dashboard/workflows/${workflow.id}`)
 }

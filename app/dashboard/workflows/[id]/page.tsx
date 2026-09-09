@@ -13,8 +13,10 @@ export default async function WorkflowPage({ params }: PageProps) {
       <div className="flex items-center justify-between border-b p-4">
         <h1 className="text-2xl font-bold">Workflow ID: {id}</h1>
       </div>
-      <div className="flex-1 overflow-hidden">
-        <WorkflowShell workflowId={id} />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden">
+          <WorkflowShell workflowId={id} />
+        </div>
       </div>
     </div>
   )

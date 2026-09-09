@@ -5,6 +5,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
+import { DashboardRight } from "./dashboard-right"
 
 interface Props {
   workflowId: string
@@ -29,9 +30,7 @@ export function WorkflowShell({ workflowId }: Props) {
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel defaultSize="16rem" minSize="14rem" maxSize="36rem">
-        <div className="flex h-50 items-center justify-center p-6">
-          <span className="font-semibold">One</span>
-        </div>
+        <DashboardRight workflowId={workflowId} />
       </ResizablePanel>
     </ResizablePanelGroup>
   )
