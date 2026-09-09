@@ -60,7 +60,12 @@ export const WorkFlowNav = ({ orgNav, onCreateWorkflow }: Props) => {
                 <>
                   {orgNav.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.id}>
-                      <SidebarMenuSubButton asChild>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={
+                          pathname === `/dashboard/workflows/${subItem.id}`
+                        }
+                      >
                         <Link href={`/dashboard/workflows/${subItem.id}`}>
                           <span>{subItem.name}</span>
                         </Link>
