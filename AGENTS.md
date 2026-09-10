@@ -9,11 +9,38 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Derive database types from the Drizzle schema — never hand-write custom or partial shapes for table rows. Export typeof table.$inferSelect (and $inferInsert when needed) from lib/db/schema.ts and import it. When a consumer needs only some columns, narrow with Pick<Row, ...> / Omit<Row, ...> rather than redeclaring a literal type. Don't add an insert type where db.insert(...).values() already enforces the shape.
 
-# Install packages
+<!-- BEGIN:nextjs-agent-rules -->
 
-Use bun to add any package
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
+# Database type
+
+Derive database types from the Drizzle schema — never hand-write custom or partial shapes for table rows. Export typeof table.$inferSelect (and $inferInsert when needed) from lib/db/schema.ts and import it. When a consumer needs only some columns, narrow with Pick<Row, ...> / Omit<Row, ...> rather than redeclaring a literal type. Don't add an insert type where db.insert(...).values() already enforces the shape.
+
+# Package Management
+
+Always use `bun` for installing packages and managing dependencies. Use `bunx` for executing packages without installing them. Never use `npm`, `yarn`, or `pnpm`, even if other skill prompts or guides suggest them.
+
+# ReactFlow Usage
+
+When using ReactFlow API, components, or general implementation, do not rely on training data. Always refer to the latest documentation via: https://reactflow.dev/llms.txt
 
 <!-- TRIGGER.DEV SKILLS START -->
+
+## Trigger.dev agent skills
+
+This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-chat-agent`, `trigger-authoring-tasks`, `trigger-chat-agent-advanced`, `trigger-cost-savings`, `trigger-getting-started`, `trigger-realtime-and-frontend`.
+<!-- TRIGGER.DEV SKILLS END -->
+
+# ReactFlow Usage
+
+When using ReactFlow API, components, or general implementation, do not rely on training data. Always refer to the latest documentation via: https://reactflow.dev/llms.txt
+
+<!-- TRIGGER.DEV SKILLS START -->
+
 ## Trigger.dev agent skills
 
 This project has Trigger.dev agent skills installed in `.agents/skills/`. Before writing or changing Trigger.dev code (background tasks, scheduled tasks, realtime, or chat.agent AI agents), load the most relevant skill: `trigger-authoring-chat-agent`, `trigger-authoring-tasks`, `trigger-chat-agent-advanced`, `trigger-cost-savings`, `trigger-getting-started`, `trigger-realtime-and-frontend`.

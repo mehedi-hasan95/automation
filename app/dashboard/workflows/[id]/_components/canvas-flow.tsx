@@ -14,14 +14,29 @@ import {
   OnConnect,
   type ColorMode,
   Controls,
+  NodeTypes,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
+import { StepNode } from "./node/step-node"
+import { StepNodeType } from "./node/node-registry"
 
-const initialNodes: Node[] = [
-  { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
-  { id: "n2", position: { x: 0, y: 100 }, data: { label: "Node 2" } },
+const nodeTypes: NodeTypes = { step: StepNode }
+
+const initialNodes: StepNodeType[] = [
+  {
+    id: "start",
+    type: "step",
+    position: { x: 0, y: 0 },
+    data: { type: "start", kind: "trigger", title: "start", values: {} },
+  },
+  {
+    id: "open-url-1",
+    type: "step",
+    position: { x: 0, y: 100 },
+    data: { type: "open-url", kind: "action", title: "Open URL", values: {} },
+  },
 ]
-const initialEdges = [{ id: "n1-n2", source: "n1", target: "n2" }]
+const initialEdges: Edge[] = []
 
 export const CanvasFlow = () => {
   const { theme } = useTheme()
@@ -45,6 +60,7 @@ export const CanvasFlow = () => {
     <ReactFlow
       nodes={nodes}
       edges={edges}
+      nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
