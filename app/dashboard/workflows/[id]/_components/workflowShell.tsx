@@ -14,13 +14,13 @@ interface Props {
 export function WorkflowShell({ workflowId }: Props) {
   return (
     <ResizablePanelGroup orientation="horizontal" className="rounded-lg border">
-      <ResizablePanel minSize="36rem">
+      <ResizablePanel minSize="30rem">
         <ResizablePanelGroup orientation="vertical">
           <ResizablePanel minSize="18rem">
             <CanvasSidebar />
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel minSize="6rem" defaultSize="8rem" maxSize="18rem">
+          <ResizablePanel minSize="6rem" defaultSize="10rem" maxSize="20rem">
             <div className="flex h-full items-center justify-center p-6">
               <span className="font-semibold">Three</span>
             </div>
