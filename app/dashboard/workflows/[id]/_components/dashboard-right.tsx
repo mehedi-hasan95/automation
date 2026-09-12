@@ -2,83 +2,334 @@
 
 import React, { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Loader2, CheckCircle2, XCircle } from "lucide-react"
-import { runWorkflowAction } from "@/api/trigger/action"
-import { useRealtimeRun } from "@trigger.dev/react-hooks"
+import { Play, MoreHorizontal, Trash2 } from "lucide-react"
+import {
+  NodeDefinition,
+  NodeField,
+  nodeRegistry,
+  NodeType,
+  StepNodeKind,
+  StepNodeType,
+} from "./node/node-registry"
+import { cn } from "cn"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useReactFlow, useStore } from "@xyflow/react"
+import { toast } from "sonner"
+import { deleteWorkflowAction } from "@/api/workflows/action"
 
-type RunHandle = {
-  id: string
-  publicAccessToken: string
+// The accent-colored icon chip, mirroring the node on the canvas.
+function NodeIcon({ type, className }: { type: NodeType; className?: string }) {
+  const def = nodeRegistry[type]
+  const Icon = def.icon
+  return (
+    <span
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center rounded-md",
+        def.accent,
+        className
+      )}
+    >
+      <Icon className="size-3.5" />
+    </span>
+  )
 }
 
-export const DashboardRight = ({ workflowId }: { workflowId: string }) => {
-  const [isPending, startTransition] = useTransition()
-  const [handle, setHandle] = useState<RunHandle | null>(null)
+// A titled, scrollable panel. Each tab renders its content inside one.
+function Section({
+  title,
+  icon,
+  children,
+}: {
+  title: string
+  icon?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center gap-2 border-y border-border bg-card px-3 py-1.5 text-sm font-semibold">
+        {icon}
+        {title}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+    </div>
+  )
+}
 
-  const { run, error: realtimeError } = useRealtimeRun(handle?.id, {
-    accessToken: handle?.publicAccessToken,
-    enabled: !!handle,
-    skipColumns: ["payload", "output"],
-  })
+// ---------------------------------------------------------------------------
+// Editor tab — edits the fields of the selected node.
+// ---------------------------------------------------------------------------
 
-  const handleRun = async () => {
-    startTransition(async () => {
-      const result = await runWorkflowAction(workflowId)
-      if (result && result.id && result.publicAccessToken) {
-        setHandle({
-          id: result.id,
-          publicAccessToken: result.publicAccessToken,
-        })
-      }
+// A single editor field for a node property.
+function FieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: NodeField
+  value: string
+  onChange: (value: string) => void
+}) {
+  if (field.multiline) {
+    return (
+      <Textarea
+        id={field.key}
+        value={value}
+        placeholder={field.placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    )
+  }
+
+  return (
+    <Input
+      id={field.key}
+      value={value}
+      placeholder={field.placeholder}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  )
+}
+
+// The Editor tab: one input per field on the selected node, or an empty state.
+function Inspector({ node }: { node: StepNodeType | undefined }) {
+  const { updateNodeData } = useReactFlow<StepNodeType>()
+
+  if (!node) {
+    return (
+      <Section title="Editor">
+        <p className="p-3 text-sm text-muted-foreground">No node selected</p>
+      </Section>
+    )
+  }
+
+  const { type, title, values } = node.data
+  const def: NodeDefinition = nodeRegistry[type]
+
+  return (
+    <Section title={title} icon={<NodeIcon type={type} />}>
+      <div className="flex flex-col gap-3 p-3">
+        {def.fields.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No properties</p>
+        ) : (
+          def.fields.map((field) => (
+            <div key={field.key} className="flex flex-col gap-1.5">
+              <Label htmlFor={field.key} className="text-xs">
+                {field.label}
+                {field.required && <div className="text-destructive">*</div>}
+              </Label>
+              <FieldInput
+                field={field}
+                value={values[field.key] ?? ""}
+                onChange={(value) => {
+                  updateNodeData(node.id, {
+                    values: { ...values, [field.key]: value },
+                  })
+                }}
+              />
+            </div>
+          ))
+        )}
+      </div>
+    </Section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Toolbar tab — adds nodes to the canvas, grouped by kind.
+// ---------------------------------------------------------------------------
+
+// The Toolbar's groups, one accordion section per node kind.
+const sections: { kind: StepNodeKind; label: string }[] = [
+  { kind: "trigger", label: "Triggers" },
+  { kind: "action", label: "Actions" },
+]
+
+// Every node type from the registry, filtered into the groups below.
+const definitions = Object.values(nodeRegistry)
+
+// The Toolbar tab: a button per node type that adds it to the canvas.
+function Palette() {
+  const { getNodes, getViewport, addNodes } = useReactFlow<StepNodeType>()
+  const width = useStore((s) => s.width)
+  const height = useStore((s) => s.height)
+
+  const add = (type: NodeType) => {
+    // TODO: add the clicked node to the canvas (one trigger max).
+    void type
+    const def = nodeRegistry[type]
+    const nodes = getNodes()
+
+    if (
+      def.kind === "trigger" &&
+      nodes.some((n) => n.data.kind === "trigger")
+    ) {
+      toast.error("A workflow can only have one trigger.")
+      return
+    }
+
+    const count = nodes.filter((n) => n.data.type === type).length
+    const title = `${def.label} ${count + 1}`
+
+    const { x, y, zoom } = getViewport()
+    const randomOffset = () => (Math.random() - 0.5) * 100
+    const position = {
+      x: (width / 2 - x + randomOffset()) / zoom,
+      y: (height / 2 - y + randomOffset()) / zoom,
+    }
+
+    addNodes({
+      id: crypto.randomUUID(),
+      type: "step",
+      position,
+      data: { type, kind: def.kind, title, values: {} },
     })
   }
 
   return (
+    <Section title="Toolbar">
+      <Accordion
+        type="multiple"
+        defaultValue={sections.map((s) => s.kind)}
+        className="px-3 py-2"
+      >
+        {sections.map((section) => (
+          <AccordionItem
+            key={section.kind}
+            value={section.kind}
+            className="not-last:border-b-0"
+          >
+            <AccordionTrigger className="py-2 text-xs font-medium text-muted-foreground hover:no-underline">
+              {section.label}
+            </AccordionTrigger>
+            <AccordionContent className="flex flex-col gap-0.5">
+              {definitions
+                .filter((def) => def.kind === section.kind)
+                .map((def) => (
+                  <Button
+                    key={def.type}
+                    variant="ghost"
+                    onClick={() => add(def.type as NodeType)}
+                    className="justify-start gap-2.5 px-1.5 text-xs"
+                  >
+                    <NodeIcon type={def.type as NodeType} />
+                    {def.label}
+                  </Button>
+                ))}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </Section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Header — workflow-level actions shown above the tabs.
+// ---------------------------------------------------------------------------
+
+// The "..." menu for workflow-level actions.
+function ActionsMenu({ workflowId }: { workflowId: string }) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon" variant="ghost">
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-48">
+        <DropdownMenuItem
+          variant="destructive"
+          className="text-xs [&_svg:not([class*='size-'])]:size-3.5"
+          disabled={isPending}
+          onSelect={(e) => {
+            e.preventDefault()
+            startTransition(async () => {
+              await deleteWorkflowAction(workflowId)
+            })
+          }}
+        >
+          <Trash2 />
+          {isPending ? "Deleting..." : "Delete workflow"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// Kicks off a run of the current workflow.
+function RunButton() {
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      onClick={() => {
+        // TODO: validate the graph and run the workflow (toggle to Stop while running).
+      }}
+    >
+      <Play fill="primary" />
+      Run
+    </Button>
+  )
+}
+
+export const DashboardRight = ({ workflowId }: { workflowId: string }) => {
+  const [tab, setTab] = useState("toolbar")
+
+  // TODO: read the currently selected node from React Flow.
+  const selected = useStore((s) => s.nodes.find((n) => n.selected)) as
+    StepNodeType | undefined
+
+  const [prevSelectedId, setPrevSelectedId] = useState(selected?.id)
+  if (selected && selected.id !== prevSelectedId) {
+    setPrevSelectedId(selected.id)
+    setTab("editor")
+  }
+
+  return (
     <div className="flex size-full flex-col items-center justify-center gap-4 p-6 text-center">
-      <Button onClick={handleRun} disabled={isPending}>
-        {isPending ? (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <Play className="mr-2 size-4" />
-        )}
-        Run Workflow
-      </Button>
-
-      {handle && (
-        <div className="flex flex-col items-center gap-2 text-sm">
-          <p className="text-muted-foreground">Run ID: {handle.id}</p>
-
-          {realtimeError && (
-            <div className="flex items-center gap-2 text-destructive">
-              <XCircle className="size-4" />
-              <span>Error: {realtimeError.message}</span>
-            </div>
-          )}
-
-          {run && (
-            <div className="flex items-center gap-2">
-              {run.status === "COMPLETED" ? (
-                <>
-                  <CheckCircle2 className="size-4 text-green-500" />
-                  <span className="font-medium text-green-600">Completed</span>
-                </>
-              ) : run.status === "FAILED" ? (
-                <>
-                  <XCircle className="size-4 text-destructive" />
-                  <span className="font-medium text-destructive">Failed</span>
-                </>
-              ) : (
-                <>
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    Status: {run.status}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+      <Tabs value={tab} onValueChange={setTab} className="size-full gap-0">
+        <div className="flex items-center justify-between border-b border-border p-2">
+          <ActionsMenu workflowId={workflowId} />
+          <RunButton />
         </div>
-      )}
+        <TabsList className="m-2 w-fit bg-background">
+          <TabsTrigger
+            value="toolbar"
+            className="flex-none rounded-sm data-active:bg-accent! data-active:text-accent-foreground! data-active:shadow-none! dark:data-active:border-transparent!"
+          >
+            Toolbar
+          </TabsTrigger>
+          <TabsTrigger
+            value="editor"
+            className="flex-none rounded-sm data-active:bg-accent! data-active:text-accent-foreground! data-active:shadow-none! dark:data-active:border-transparent!"
+          >
+            Editor
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="toolbar" className="flex min-h-0 flex-col">
+          <Palette />
+        </TabsContent>
+        <TabsContent value="editor" className="flex min-h-0 flex-col">
+          <Inspector node={selected} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

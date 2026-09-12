@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { liveblocks } from "@/lib/liveblocks"
 import { getSingleWorkflow } from "@/api/workflows"
+import { ReactFlowProvider } from "@xyflow/react"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -30,7 +31,9 @@ export default async function WorkflowPage({ params }: PageProps) {
   return (
     <div className="flex h-svh w-full flex-col">
       <Room orgId={id}>
-        <WorkflowShell workflowId={id} />
+        <ReactFlowProvider>
+          <WorkflowShell workflowId={id} />
+        </ReactFlowProvider>
       </Room>
     </div>
   )
