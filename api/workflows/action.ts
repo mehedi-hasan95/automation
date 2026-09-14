@@ -3,8 +3,15 @@
 import { auth } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { createWorkflow, deleteWorkflow } from "@/api/workflows/index"
+import {
+  createWorkflow,
+  deleteWorkflow,
+  saveWorkflowGraph,
+} from "@/api/workflows/index"
 import { liveblocks } from "@/lib/liveblocks"
+import { runs, tasks } from "@trigger.dev/sdk"
+import { WorkflowGraph } from "@/lib/db/schema"
+import type { runWorkflowTask } from "@/trigger/run-workflow"
 
 export const createWorkflowAction = async (name: string) => {
   if (!name) {
@@ -45,4 +52,33 @@ export const deleteWorkflowAction = async (workflowId: string) => {
 
   revalidatePath("/dashboard", "layout")
   redirect("/dashboard")
+}
+
+export async function runWorkflowAction({
+  id,
+  graph,
+}: {
+  id: string
+  graph: WorkflowGraph
+}) {
+  const { orgId } = await auth()
+  if (!orgId) {
+    throw new Error("No active organization")
+  }
+
+  await saveWorkflowGraph({ graph, id, orgId })
+
+  const handle = await tasks.trigger<typeof runWorkflowTask>(
+    "run-workflow",
+    { workflowId: id, orgId },
+    { tags: [`workflow:${id}`] }
+  )
+  return handle
+}
+
+export const cancelWorkflowRunAction = async (runId: string) => {
+  const { orgId } = await auth()
+  if (!orgId) throw new Error("No active organization")
+
+  await runs.cancel(runId)
 }

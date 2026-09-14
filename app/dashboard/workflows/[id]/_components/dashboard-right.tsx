@@ -30,7 +30,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useReactFlow, useStore } from "@xyflow/react"
 import { toast } from "sonner"
-import { deleteWorkflowAction } from "@/api/workflows/action"
+import { deleteWorkflowAction, runWorkflowAction } from "@/api/workflows/action"
+import { validateGraph } from "@/lib/validate-graph"
 
 // The accent-colored icon chip, mirroring the node on the canvas.
 function NodeIcon({ type, className }: { type: NodeType; className?: string }) {
@@ -169,7 +170,6 @@ function Palette() {
   const height = useStore((s) => s.height)
 
   const add = (type: NodeType) => {
-    // TODO: add the clicked node to the canvas (one trigger max).
     void type
     const def = nodeRegistry[type]
     const nodes = getNodes()
@@ -274,13 +274,26 @@ function ActionsMenu({ workflowId }: { workflowId: string }) {
 }
 
 // Kicks off a run of the current workflow.
-function RunButton() {
+function RunButton({ workflowId }: { workflowId: string }) {
+  const { getNodes, getEdges } = useReactFlow<StepNodeType>()
+  const [isPending, startTransition] = useTransition()
+
   return (
     <Button
       size="sm"
       variant="secondary"
+      disabled={isPending}
       onClick={() => {
-        // TODO: validate the graph and run the workflow (toggle to Stop while running).
+        const graph = { nodes: getNodes(), edge: getEdges() }
+        const problems = validateGraph(graph)
+        if (problems.length > 0) {
+          toast.error(problems[0])
+          return
+        }
+
+        startTransition(async () => {
+          await runWorkflowAction({ graph, id: workflowId })
+        })
       }}
     >
       <Play fill="primary" />
@@ -307,7 +320,7 @@ export const DashboardRight = ({ workflowId }: { workflowId: string }) => {
       <Tabs value={tab} onValueChange={setTab} className="size-full gap-0">
         <div className="flex items-center justify-between border-b border-border p-2">
           <ActionsMenu workflowId={workflowId} />
-          <RunButton />
+          <RunButton workflowId={workflowId} />
         </div>
         <TabsList className="m-2 w-fit bg-background">
           <TabsTrigger
