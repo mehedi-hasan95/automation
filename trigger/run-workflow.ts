@@ -1,4 +1,6 @@
 import { getSingleWorkflow } from "@/api/workflows"
+import { nodeExecutors } from "@/app/dashboard/workflows/[id]/_components/node/node-executors"
+import { Stagehand } from "@browserbasehq/stagehand"
 import { logger, task } from "@trigger.dev/sdk"
 import toposort from "toposort"
 
@@ -21,11 +23,31 @@ export const runWorkflowTask = task({
 
     logger.log(`Running workflow ${workflow.name}`, { steps: order.length })
 
+    let stagehand: Stagehand | undefined
+    const getStagehand = async () => {
+      if (stagehand) return stagehand
+      stagehand = new Stagehand({
+        env: "BROWSERBASE",
+        apiKey: process.env.BROWSERBASE_API_KEY!,
+        model: "google/gemini-2.5-flash",
+        // Pino's logging backend spawns a thread-stream worker (lib/worker.js)
+        // that can't be resolved inside trigger.dev's bundled output. Disable it —
+        // the option exists for exactly these minimal/bundled environments.
+        disablePino: true,
+      })
+      await stagehand.init()
+      return stagehand
+    }
+
     for (const id of order) {
       const node = byId.get(id)!
       logger.log(`Running step: ${node.data.title}`)
+
+      const executor = nodeExecutors[node.data.type]
+      if (executor) await executor({ values: node.data.values, getStagehand })
     }
 
+    await stagehand?.close()
     return { steps: order.length }
   },
 })
