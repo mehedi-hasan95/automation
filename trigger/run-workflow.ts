@@ -1,5 +1,9 @@
 import { getSingleWorkflow } from "@/api/workflows"
 import { nodeExecutors } from "@/app/dashboard/workflows/[id]/_components/node/node-executors"
+import {
+  interpolate,
+  NodeOutputs,
+} from "@/app/dashboard/workflows/[id]/_components/others/interpolate"
 import { Stagehand } from "@browserbasehq/stagehand"
 import { logger, task } from "@trigger.dev/sdk"
 import toposort from "toposort"
@@ -39,12 +43,30 @@ export const runWorkflowTask = task({
       return stagehand
     }
 
+    const outputs: NodeOutputs = {}
+
     for (const id of order) {
       const node = byId.get(id)!
       logger.log(`Running step: ${node.data.title}`)
 
+      // Interpolate field values using upstream outputs
+      const interpolatedValues = Object.fromEntries(
+        Object.entries(node.data.values).map(([key, value]) => [
+          key,
+          typeof value === "string"
+            ? interpolate({ text: value, outputs })
+            : value,
+        ])
+      )
+
       const executor = nodeExecutors[node.data.type]
-      if (executor) await executor({ values: node.data.values, getStagehand })
+      if (executor) {
+        const result = await executor({
+          values: interpolatedValues,
+          getStagehand,
+        })
+        outputs[id] = result
+      }
     }
 
     await stagehand?.close()

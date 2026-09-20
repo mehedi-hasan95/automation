@@ -21,6 +21,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { useUpstreamConnections, type UpstreamToken } from "./others/use-upstream-connections"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +110,8 @@ function FieldInput({
 // The Editor tab: one input per field on the selected node, or an empty state.
 function Inspector({ node }: { node: StepNodeType | undefined }) {
   const { updateNodeData } = useReactFlow<StepNodeType>()
+  const upstreamTokens = useUpstreamConnections()
+  const [lastEditedField, setLastEditedField] = useState<string | null>(null)
 
   if (!node) {
     return (
@@ -120,6 +123,18 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
 
   const { type, title, values } = node.data
   const def: NodeDefinition = nodeRegistry[type]
+
+  const insertToken = (token: string) => {
+    const fieldKey = lastEditedField ?? def.fields[0]?.key
+    if (!fieldKey) return
+
+    const currentVal = values[fieldKey] ?? ""
+    const newVal = currentVal + token
+
+    updateNodeData(node.id, {
+      values: { ...values, [fieldKey]: newVal },
+    })
+  }
 
   return (
     <Section title={title} icon={<NodeIcon type={type} />}>
@@ -137,6 +152,7 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
                 field={field}
                 value={values[field.key] ?? ""}
                 onChange={(value) => {
+                  setLastEditedField(field.key)
                   updateNodeData(node.id, {
                     values: { ...values, [field.key]: value },
                   })
@@ -144,6 +160,26 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
               />
             </div>
           ))
+        )}
+
+        {upstreamTokens.length > 0 && (
+          <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Connections
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {upstreamTokens.map((ut, i) => (
+                <button
+                  key={i}
+                  onClick={() => insertToken(ut.token)}
+                  className="flex items-center gap-1.5 rounded-full bg-secondary px-2 py-1 text-[10px] font-medium hover:bg-secondary/80 transition-colors"
+                >
+                  <NodeIcon type={ut.type as NodeType} className="size-4" />
+                  {ut.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </Section>
