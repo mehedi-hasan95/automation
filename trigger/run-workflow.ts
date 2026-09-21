@@ -5,8 +5,13 @@ import {
   NodeOutputs,
 } from "@/app/dashboard/workflows/[id]/_components/others/interpolate"
 import { Stagehand } from "@browserbasehq/stagehand"
-import { logger, task } from "@trigger.dev/sdk"
+import { logger, metadata, task } from "@trigger.dev/sdk"
 import toposort from "toposort"
+
+export type RunStep = {
+  id: string
+  status: "pending" | "running" | "done" | "failed"
+}
 
 export const runWorkflowTask = task({
   id: "run-workflow",
@@ -26,6 +31,9 @@ export const runWorkflowTask = task({
       .filter((id) => connected.has(id))
 
     logger.log(`Running workflow ${workflow.name}`, { steps: order.length })
+    const steps: RunStep[] = order.map((id) => ({ id, status: "pending" }))
+
+    metadata.set("steps", steps)
 
     let stagehand: Stagehand | undefined
     const getStagehand = async () => {
@@ -45,31 +53,48 @@ export const runWorkflowTask = task({
 
     const outputs: NodeOutputs = {}
 
-    for (const id of order) {
+    for (let i = 0; i < order.length; i++) {
+      const id = order[i]
+      const step = steps[i]
       const node = byId.get(id)!
       logger.log(`Running step: ${node.data.title}`)
 
-      // Interpolate field values using upstream outputs
-      const interpolatedValues = Object.fromEntries(
-        Object.entries(node.data.values).map(([key, value]) => [
+      const executor = nodeExecutors[node.data.type]
+      if (!executor) continue
+
+      // Mark running before the executor and flush immediately: the "done" set
+      // below happens before the SDK's next background flush, so without forcing
+      // it here the "running" state is overwritten and the canvas never spins.
+      step.status = "running"
+      metadata.set("steps", steps)
+      await metadata.flush()
+
+      // Swap {{ nodeId.path }} placeholders for upstream output before running.
+      const values = Object.fromEntries(
+        Object.entries(node.data.values).map(([key, text]) => [
           key,
-          typeof value === "string"
-            ? interpolate({ text: value, outputs })
-            : value,
+          interpolate({ text, outputs }),
         ])
       )
 
-      const executor = nodeExecutors[node.data.type]
-      if (executor) {
-        const result = await executor({
-          values: interpolatedValues,
-          getStagehand,
-        })
-        outputs[id] = result
+      try {
+        outputs[id] = await executor({ values, getStagehand })
+      } catch (error) {
+        // Flush the "failed" state before the throw unwinds the run: a thrown run
+        // returns no output, so this flushed metadata is the only way the canvas
+        // ever learns which node failed.
+        step.status = "failed"
+        metadata.set("steps", steps)
+        await metadata.flush()
+        await stagehand?.close()
+        throw error
       }
+
+      step.status = "done"
+      metadata.set("steps", steps)
     }
 
     await stagehand?.close()
-    return { steps: order.length }
+    return { steps }
   },
 })
