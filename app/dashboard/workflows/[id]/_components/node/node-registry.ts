@@ -1,5 +1,5 @@
 import type { Node } from "@xyflow/react"
-import { Globe, MousePointerClick, type LucideIcon } from "lucide-react"
+import { Globe, MousePointerClick, MousePointer2, FileSearch, Eye, Bot, type LucideIcon } from "lucide-react"
 
 export type StepNodeKind = "trigger" | "action"
 
@@ -57,6 +57,90 @@ export const nodeRegistry = {
       { path: "title", label: "Title" },
     ],
   },
+  act: {
+    type: "act",
+    kind: "action",
+    label: "Act",
+    icon: MousePointer2,
+    accent: "bg-orange-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Click the 'Login' button",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "success", label: "Success" },
+      { path: "message", label: "Message" },
+      { path: "url", label: "URL" },
+    ],
+  },
+  extract: {
+    type: "extract",
+    kind: "action",
+    label: "Extract",
+    icon: FileSearch,
+    accent: "bg-purple-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Extract the product price and availability",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "result", label: "Result" },
+    ],
+  },
+  observe: {
+    type: "observe",
+    kind: "action",
+    label: "Observe",
+    icon: Eye,
+    accent: "bg-cyan-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Find the 'Checkout' button and related elements",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "result", label: "Result" },
+    ],
+  },
+  agent: {
+    type: "agent",
+    kind: "action",
+    label: "Agent",
+    icon: Bot,
+    accent: "bg-indigo-500 text-white",
+    fields: [
+      {
+        key: "instruction",
+        label: "Instruction",
+        placeholder: "Search for 'Claude Code' and tell me the first result",
+        multiline: true,
+        required: true,
+      },
+    ],
+    outputs: [
+      { path: "success", label: "Success" },
+      { path: "summary", label: "Summary" },
+      { path: "completed", label: "Completed" },
+    ],
+  },
+
+
+
+
 } satisfies Record<string, NodeDefinition>
 
 export type NodeType = keyof typeof nodeRegistry
