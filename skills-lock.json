@@ -66,6 +66,12 @@
       "sourceType": "github",
       "skillPath": "skills/liveblocks-best-practices/SKILL.md",
       "computedHash": "2b3daf7dda490867910431e73bc782b167159be668ac658977cc1fe5464d1d96"
+    },
+    "resend": {
+      "source": "resend/resend-skills",
+      "sourceType": "github",
+      "skillPath": "skills/resend/SKILL.md",
+      "computedHash": "72169e4605a19bb4333d3787fd1ded476791d79828bf077e350957eb04d00962"
     }
   }
 }
