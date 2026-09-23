@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/resizable"
 import { DashboardRight } from "./dashboard-right"
 import { CanvasSidebar } from "./canvas-sidebar"
+import { ConsolePanel } from "./console-panel"
 
 interface Props {
   workflowId: string
@@ -21,9 +22,7 @@ export function WorkflowShell({ workflowId }: Props) {
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel minSize="6rem" defaultSize="10rem" maxSize="20rem">
-            <div className="flex h-full items-center justify-center p-6">
-              <span className="font-semibold">Three</span>
-            </div>
+            <ConsolePanel />
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>

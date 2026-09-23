@@ -1,5 +1,5 @@
 import React from "react"
-import { WorkflowShell } from "./_components/workflowShell"
+import { WorkflowShell } from "./_components/workflow-shell"
 import { Room } from "./_components/room"
 import { auth as clerkAuth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
@@ -44,10 +44,7 @@ export default async function WorkflowPage({ params }: PageProps) {
     <div className="flex h-svh w-full flex-col">
       <Room orgId={id}>
         <ReactFlowProvider>
-          <WorkflowRunsProvider
-            workflowId={id}
-            publicAccessToken={publicToken}
-          >
+          <WorkflowRunsProvider workflowId={id} publicAccessToken={publicToken}>
             <WorkflowShell workflowId={id} />
           </WorkflowRunsProvider>
         </ReactFlowProvider>

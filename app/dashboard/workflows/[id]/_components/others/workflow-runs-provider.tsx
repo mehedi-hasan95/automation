@@ -5,6 +5,7 @@ import { useRealtimeRunsWithTag } from "@trigger.dev/react-hooks"
 import { RunStep } from "@/trigger/run-workflow"
 
 interface WorkflowRunsContextValue {
+  runs: unknown[]
   latestRunSteps: RunStep[] | undefined
   isLive: boolean
 }
@@ -33,6 +34,7 @@ export function WorkflowRunsProvider({
   const value = useMemo(() => {
     if (!runs || runs.length === 0) {
       return {
+        runs: [],
         latestRunSteps: undefined,
         isLive: false,
       }
@@ -56,6 +58,7 @@ export function WorkflowRunsProvider({
       (latestRun.metadata as { steps?: RunStep[] })?.steps
 
     return {
+      runs: sortedRuns,
       latestRunSteps: steps,
       isLive,
     }
@@ -68,13 +71,18 @@ export function WorkflowRunsProvider({
   )
 }
 
-export function useLatestRunSteps() {
+export function useWorkflowRuns() {
   const context = useContext(WorkflowRunsContext)
   if (context === undefined) {
     throw new Error(
-      "useLatestRunSteps must be used within a WorkflowRunsProvider"
+      "useWorkflowRuns must be used within a WorkflowRunsProvider"
     )
   }
+  return context
+}
+
+export function useLatestRunSteps() {
+  const context = useWorkflowRuns()
   return {
     steps: context.latestRunSteps,
     isLive: context.isLive,

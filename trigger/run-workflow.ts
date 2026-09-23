@@ -7,10 +7,17 @@ import {
 import { Stagehand } from "@browserbasehq/stagehand"
 import { logger, metadata, task } from "@trigger.dev/sdk"
 import toposort from "toposort"
+import type { DeserializedJson } from "@trigger.dev/core"
 
 export type RunStep = {
   id: string
   status: "pending" | "running" | "done" | "failed"
+  title: string
+  type: string
+  startTime: number | null
+  endTime: number | null
+  output: unknown
+  error: string | null
 }
 
 export const runWorkflowTask = task({
@@ -31,9 +38,21 @@ export const runWorkflowTask = task({
       .filter((id) => connected.has(id))
 
     logger.log(`Running workflow ${workflow.name}`, { steps: order.length })
-    const steps: RunStep[] = order.map((id) => ({ id, status: "pending" }))
+    const steps: RunStep[] = order.map((id) => {
+      const node = byId.get(id)!
+      return {
+        id,
+        status: "pending",
+        title: node.data.title,
+        type: node.data.type,
+        startTime: null,
+        endTime: null,
+        output: null,
+        error: null,
+      }
+    })
 
-    metadata.set("steps", steps)
+    metadata.set("steps", steps as unknown as DeserializedJson[])
 
     let stagehand: Stagehand | undefined
     const getStagehand = async () => {
@@ -60,13 +79,19 @@ export const runWorkflowTask = task({
       logger.log(`Running step: ${node.data.title}`)
 
       const executor = nodeExecutors[node.data.type]
-      if (!executor) continue
+      if (!executor) {
+        step.status = "done"
+        metadata.set("steps", steps as unknown as DeserializedJson[])
+        await metadata.flush()
+        continue
+      }
 
       // Mark running before the executor and flush immediately: the "done" set
       // below happens before the SDK's next background flush, so without forcing
       // it here the "running" state is overwritten and the canvas never spins.
       step.status = "running"
-      metadata.set("steps", steps)
+      step.startTime = Date.now()
+      metadata.set("steps", steps as unknown as DeserializedJson[])
       await metadata.flush()
 
       // Swap {{ nodeId.path }} placeholders for upstream output before running.
@@ -78,20 +103,25 @@ export const runWorkflowTask = task({
       )
 
       try {
-        outputs[id] = await executor({ values, getStagehand })
+        const result = await executor({ values, getStagehand })
+        outputs[id] = result
+        step.output = result
+        step.endTime = Date.now()
       } catch (error) {
         // Flush the "failed" state before the throw unwinds the run: a thrown run
         // returns no output, so this flushed metadata is the only way the canvas
         // ever learns which node failed.
         step.status = "failed"
-        metadata.set("steps", steps)
+        step.endTime = Date.now()
+        step.error = error instanceof Error ? error.message : String(error)
+        metadata.set("steps", steps as unknown as DeserializedJson[])
         await metadata.flush()
         await stagehand?.close()
         throw error
       }
 
       step.status = "done"
-      metadata.set("steps", steps)
+      metadata.set("steps", steps as unknown as DeserializedJson[])
     }
 
     await stagehand?.close()
