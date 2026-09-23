@@ -2,7 +2,7 @@
 
 import React from "react"
 import { cn } from "cn"
-import { Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, Play } from "lucide-react"
 import prettyMs from "pretty-ms"
 import { RunStep } from "@/trigger/run-workflow"
 import { NodeIcon } from "./node-icon"
@@ -67,16 +67,44 @@ function StepItem({ step, isSelected, onSelect }: StepItemProps) {
   )
 }
 
+function ReplayItem({
+  isSelected,
+  onSelect,
+}: {
+  isSelected: boolean
+  onSelect: (id: string) => void
+}) {
+  return (
+    <div
+      onClick={() => onSelect("replay")}
+      className={cn(
+        "flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-secondary/50",
+        isSelected && "bg-secondary"
+      )}
+    >
+      <Play className="size-3.5 fill-primary text-primary" />
+      <span className="flex-1 truncate text-xs font-medium">
+        Replay Session
+      </span>
+    </div>
+  )
+}
+
+type Selection =
+  | { type: "step"; id: string }
+  | { type: "replay"; id: string }
+  | null
+
 export function LogsPanel({
   runs,
   latestRunSteps,
-  selectedStepId,
-  onSelectStep,
+  selection,
+  onSelect,
 }: {
   runs: unknown[] | undefined
   latestRunSteps?: RunStep[]
-  selectedStepId: string | null
-  onSelectStep: (id: string) => void
+  selection: Selection
+  onSelect: (selection: Selection) => void
 }) {
   if (!runs || runs.length === 0) {
     return (
@@ -85,6 +113,10 @@ export function LogsPanel({
       </div>
     )
   }
+
+  const latestRun = runs[0] as { output?: { sessionId?: string }; status: string }
+  const hasReplay =
+    latestRun?.output?.sessionId && latestRun?.status !== "EXECUTING"
 
   return (
     <div className="flex flex-col gap-4 p-3">
@@ -137,12 +169,20 @@ export function LogsPanel({
             Execution Steps
           </div>
           <div className="flex flex-col gap-1">
+            {hasReplay && (
+              <ReplayItem
+                isSelected={selection?.type === "replay"}
+                onSelect={(id) => onSelect({ type: "replay", id })}
+              />
+            )}
             {latestRunSteps.map((step) => (
               <StepItem
                 key={step.id}
                 step={step}
-                isSelected={selectedStepId === step.id}
-                onSelect={onSelectStep}
+                isSelected={
+                  selection?.type === "step" && selection.id === step.id
+                }
+                onSelect={(id) => onSelect({ type: "step", id })}
               />
             ))}
           </div>

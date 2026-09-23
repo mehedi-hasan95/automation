@@ -1,41 +1,59 @@
 "use client"
 
-import React, { useState } from "react"
+import { useState } from "react"
 import { useReactFlow } from "@xyflow/react"
 import { useWorkflowRuns } from "./others/workflow-runs-provider"
 import { LogsPanel } from "./logs-panel"
 import { InspectorPanel } from "./inspector-panel"
 import { cn } from "cn"
 
+type Selection =
+  | { type: "step"; id: string }
+  | { type: "replay"; id: string }
+  | null
+
 function ConsoleInner({
-  onSelectStep,
-  selectedStepId
+  onSelect,
+  selection,
 }: {
-  onSelectStep: (id: string) => void
-  selectedStepId: string | null
+  onSelect: (selection: Selection) => void
+  selection: Selection
 }) {
   const { runs, latestRunSteps } = useWorkflowRuns()
 
   if (!runs) return null
 
-  const selectedStep = latestRunSteps?.find((s) => s.id === selectedStepId)
+  const selectedStep =
+    selection?.type === "step"
+      ? latestRunSteps?.find((s) => s.id === selection.id)
+      : undefined
+
+  const selectedSessionId =
+    selection?.type === "replay"
+      ? (runs[0] as { output?: { sessionId?: string } })?.output?.sessionId
+      : undefined
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      <div className={cn(
-        "flex-1 overflow-y-auto transition-all",
-        selectedStepId ? "max-w-md" : "w-full"
-      )}>
+      <div
+        className={cn(
+          "flex-1 overflow-y-auto transition-all",
+          selection ? "max-w-md" : "w-full"
+        )}
+      >
         <LogsPanel
           runs={runs}
           latestRunSteps={latestRunSteps}
-          selectedStepId={selectedStepId}
-          onSelectStep={onSelectStep}
+          selection={selection}
+          onSelect={onSelect}
         />
       </div>
-      {selectedStepId && (
-        <div className="w-1/2 min-w-[300px] max-w-lg animate-in slide-in-from-right duration-200">
-          <InspectorPanel step={selectedStep} />
+      {selection && (
+        <div className="w-1/2 max-w-lg min-w-75 animate-in duration-200 slide-in-from-right">
+          <InspectorPanel
+            step={selectedStep}
+            sessionId={selectedSessionId}
+          />
         </div>
       )}
     </div>
@@ -43,16 +61,21 @@ function ConsoleInner({
 }
 
 export function ConsolePanel() {
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
+  const [selection, setSelection] = useState<Selection>(null)
   const { setNodes } = useReactFlow()
 
-  const handleSelectStep = (id: string) => {
-    if (selectedStepId === id) {
-      setSelectedStepId(null)
+  const handleSelect = (newSelection: Selection) => {
+    if (selection?.type === newSelection?.type && selection?.id === newSelection?.id) {
+      setSelection(null)
       setNodes((nds) => nds.map((n) => ({ ...n, selected: false })))
     } else {
-      setSelectedStepId(id)
-      setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === id })))
+      setSelection(newSelection)
+      setNodes((nds) =>
+        nds.map((n) => ({
+          ...n,
+          selected: newSelection?.type === "step" && n.id === newSelection.id,
+        }))
+      )
     }
   }
 
@@ -69,8 +92,8 @@ export function ConsolePanel() {
       </div>
       <div className="flex-1 overflow-y-auto">
         <ConsoleInner
-          onSelectStep={handleSelectStep}
-          selectedStepId={selectedStepId}
+          onSelect={handleSelect}
+          selection={selection}
         />
       </div>
     </div>

@@ -7,6 +7,7 @@ import { RunStep } from "@/trigger/run-workflow"
 interface WorkflowRunsContextValue {
   runs: unknown[]
   latestRunSteps: RunStep[] | undefined
+  sessionId?: string
   isLive: boolean
 }
 
@@ -57,9 +58,12 @@ export function WorkflowRunsProvider({
       (latestRun.output as { steps?: RunStep[] })?.steps ??
       (latestRun.metadata as { steps?: RunStep[] })?.steps
 
+    const sessionId = (latestRun.output as { sessionId?: string })?.sessionId
+
     return {
       runs: sortedRuns,
       latestRunSteps: steps,
+      sessionId,
       isLive,
     }
   }, [runs])

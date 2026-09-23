@@ -11,7 +11,6 @@ import {
   StepNodeKind,
   StepNodeType,
 } from "./node/node-registry"
-import { cn } from "cn"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,7 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { useUpstreamConnections, type UpstreamToken } from "./others/use-upstream-connections"
+import { useUpstreamConnections } from "./others/use-upstream-connections"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,23 +32,7 @@ import { useReactFlow, useStore } from "@xyflow/react"
 import { toast } from "sonner"
 import { deleteWorkflowAction, runWorkflowAction } from "@/api/workflows/action"
 import { validateGraph } from "@/lib/validate-graph"
-
-// The accent-colored icon chip, mirroring the node on the canvas.
-function NodeIcon({ type, className }: { type: NodeType; className?: string }) {
-  const def = nodeRegistry[type]
-  const Icon = def.icon
-  return (
-    <span
-      className={cn(
-        "flex size-6 shrink-0 items-center justify-center rounded-md",
-        def.accent,
-        className
-      )}
-    >
-      <Icon className="size-3.5" />
-    </span>
-  )
-}
+import { NodeIcon } from "./node-icon"
 
 // A titled, scrollable panel. Each tab renders its content inside one.
 function Section({
@@ -172,7 +155,7 @@ function Inspector({ node }: { node: StepNodeType | undefined }) {
                 <button
                   key={i}
                   onClick={() => insertToken(ut.token)}
-                  className="flex items-center gap-1.5 rounded-full bg-secondary px-2 py-1 text-[10px] font-medium hover:bg-secondary/80 transition-colors"
+                  className="flex items-center gap-1.5 rounded-full bg-secondary px-2 py-1 text-[10px] font-medium transition-colors hover:bg-secondary/80"
                 >
                   <NodeIcon type={ut.type as NodeType} className="size-4" />
                   {ut.label}

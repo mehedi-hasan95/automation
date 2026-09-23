@@ -1,17 +1,31 @@
 "use client"
 
-import React from "react"
-import { cn } from "cn"
 import { AlertCircle, Info } from "lucide-react"
 import { RunStep } from "@/trigger/run-workflow"
+import { SessionReplay } from "./session-replay"
 
 export function InspectorPanel({
-  step
+  step,
+  sessionId,
 }: {
   step: RunStep | undefined
+  sessionId?: string
 }) {
-  if (!step) {
+  if (!step && !sessionId) {
     return null
+  }
+
+  if (sessionId) {
+    return (
+      <div className="flex h-full flex-col border-l border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-2 text-xs font-semibold">
+          <span className="text-muted-foreground">Session Replay</span>
+        </div>
+        <div className="flex-1 overflow-hidden p-4">
+          <SessionReplay sessionId={sessionId} />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -20,7 +34,7 @@ export function InspectorPanel({
         <span className="text-muted-foreground">Step Output</span>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
-        {step.status === "failed" && step.error && (
+        {step?.status === "failed" && step?.error && (
           <div className="mb-4 flex gap-2 rounded-md bg-destructive/10 p-3 text-destructive">
             <AlertCircle className="size-4 shrink-0" />
             <div className="text-xs">
@@ -30,7 +44,7 @@ export function InspectorPanel({
           </div>
         )}
 
-        {step.output ? (
+        {step?.output ? (
           <pre className="font-mono text-[11px] leading-relaxed text-foreground">
             {JSON.stringify(step.output, null, 2)}
           </pre>
@@ -38,11 +52,11 @@ export function InspectorPanel({
           <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
             <Info className="mb-2 size-5 opacity-20" />
             <p className="text-xs">
-              {step.status === "running"
+              {step?.status === "running"
                 ? "Step is still executing..."
-                : step.status === "pending"
-                ? "Step has not started yet."
-                : "No output available for this step."}
+                : step?.status === "pending"
+                  ? "Step has not started yet."
+                  : "No output available for this step."}
             </p>
           </div>
         )}
